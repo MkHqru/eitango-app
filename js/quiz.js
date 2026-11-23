@@ -38,15 +38,22 @@
   }
 
   // 今日の出題予定（js/schedule.js）から、1回分（最大10問）の問題を作る
-  //   順番は ①出題日を過ぎた復習の単語 → ②まだ出していない新しい単語（級の低い順）
+  //   順番は ①出題日を過ぎた復習の単語（すべての級）→ ②まだ出していない新しい単語（今の級＝newGrade だけ）
   //   4択の不正解の選択肢は、その単語と同じ級の単語から選ぶ
-  function createSession(format, records, todayStr, words) {
+  function createSession(format, records, todayStr, newGrade, words) {
     words = words || window.WORDS;
-    var plan = Schedule.planToday(words, records, format, todayStr);
+    var plan = Schedule.planToday(words, records, format, todayStr, newGrade);
     return plan.queue.slice(0, QUESTION_COUNT).map(function (word, i) {
       var q = { word: word, format: format, isReview: i < plan.reviews.length };
       if (format === 'en-ja') q.choices = makeChoices(word, wordsOfGrade(word.grade, words));
       return q;
+    });
+  }
+
+  // 合格テストの問題：その級の全単語の例文穴埋め（順番はランダム）
+  function createExam(grade, words) {
+    return shuffle(wordsOfGrade(grade, words)).map(function (word) {
+      return { word: word, format: 'fill', isExam: true };
     });
   }
 
@@ -79,6 +86,7 @@
     GRADES: GRADES,
     wordsOfGrade: wordsOfGrade,
     createSession: createSession,
+    createExam: createExam,
     makeChoices: makeChoices,
     normalize: normalize,
     isCorrect: isCorrect,
