@@ -145,24 +145,6 @@ input:focus { outline: 2px solid #2b5fab; border-color: transparent; }
 .word-list .en { font-weight: bold; }
 .word-list .pos { font-size: 12px; color: #5a6472; }
 
-/* 級・出題形式の選択 */
-.step-label { margin: 16px 0 0; font-size: 14px; font-weight: bold; color: #5a6472; }
-
-.segmented { display: flex; gap: 8px; margin-top: 8px; }
-.segmented label { flex: 1; margin: 0; font-size: 16px; }
-.segmented input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.segmented span {
-  display: block;
-  padding: 10px 0;
-  border: 1px solid #c5ccd6;
-  border-radius: 8px;
-  background: #fff;
-  text-align: center;
-  cursor: pointer;
-}
-.segmented input:checked + span { background: #2b5fab; border-color: #2b5fab; color: #fff; }
-.segmented input:focus-visible + span { outline: 2px solid #2b5fab; outline-offset: 2px; }
-
 /* 例文穴埋め */
 .sentence-area { margin: 16px 0 8px; }
 .sentence-ja { margin: 0; font-size: 16px; color: #3a4350; }
@@ -176,3 +158,47 @@ input:focus { outline: 2px solid #2b5fab; border-color: transparent; }
 }
 .sentence-en .blank { display: inline-block; min-width: 4em; border-bottom: 2px solid #2b5fab; }
 .sentence-en .filled { color: #1e7d32; border-bottom: 2px solid #1e7d32; }
+
+/* デモ用の日付操作 */
+.demo-date-bar {
+  padding: 8px 16px;
+  background: #fff8dc;
+  border-bottom: 1px solid #f0dc8c;
+  font-size: 14px;
+}
+.demo-date-text { margin: 0; }
+.demo-offset { margin-left: 6px; color: #8a6d00; font-weight: bold; white-space: nowrap; }
+.demo-date-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.demo-date-buttons button {
+  flex: 1 1 auto;
+  min-width: 56px;
+  padding: 6px 8px;
+  border: 1px solid #d9c26a;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* 生徒ホーム：出題形式ごとの今日の状況 */
+.hint { margin: 4px 0 0; font-size: 13px; color: #5a6472; }
+.format-card {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e0e5ec;
+  border-radius: 10px;
+}
+.format-card h4 { margin: 0; font-size: 16px; }
+.format-card .btn { margin-top: 10px; }
+.stats { display: flex; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.stats li {
+  flex: 1;
+  padding: 6px 4px;
+  border-radius: 6px;
+  background: #f3f5f8;
+  font-size: 11px;
+  text-align: center;
+  color: #5a6472;
+}
+.stats strong { display: block; font-size: 20px; color: #222; }
+.done-message { margin: 10px 0 0; font-weight: bold; color: #1e7d32; text-align: center; }
