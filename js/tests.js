@@ -362,7 +362,7 @@
     return p;
   })());
 
-  check('新しい単語は今の級から ID の順に出て、40語出し終えたら0語になる（次の級は出ない）', (function () {
+  check('今の級が20級なら、新しい単語は20級から ID の順に出て、40語出し終えたら0語になる（次の級は出ない）', (function () {
     var recs = {}, p = [], d = D0, order = [];
     for (var i = 0; i < 6; i++) {
       var news = plan(recs, 'en-ja', d, 20).news;
@@ -499,6 +499,7 @@
   check('【#9 完成の条件5】19級に上がっても、20級の単語の復習は出る', (function () {
     var p = [], recs = {};
     answerIds(recs, ['20-01', '20-02'], 'fill', false, D0);
+    answerIds(recs, gradeIds(20).slice(2), 'fill', true, D0); // 20級の残りは正解（3日後まで出ない）
     answerIds(recs, ['20-03'], 'en-ja', true, D0);
     var revFill = ids(plan(recs, 'fill', day(1), 19).reviews);
     if (revFill.indexOf('20-01') === -1 || revFill.indexOf('20-02') === -1) p.push('例文穴埋め：20級の復習が出ない（' + revFill.join(', ') + '）');
@@ -506,6 +507,33 @@
     if (revEnJa.indexOf('20-03') === -1) p.push('英→日：20級の復習が出ない');
     var q = ids(plan(recs, 'fill', day(1), 19).queue);
     if (q[0].slice(0, 2) !== '20' || q[2].slice(0, 2) !== '19') p.push('並び順が「20級の復習 → 19級の新しい単語」になっていない：' + q.slice(0, 4).join(', '));
+    return p;
+  })());
+
+  check('新しい単語は「今の級まで（今の級と下の級）」から、級の低い順に出る（前の級の残りが先に出る）', (function () {
+    var p = [];
+    // 英→日で20級を10語だけ出したあと、19級に上がった場合
+    var recs = {};
+    answerIds(recs, gradeIds(20).slice(0, 10), 'en-ja', true, D0);
+    var d = day(1), order = [];
+    for (var i = 0; i < 8; i++) {
+      var news = plan(recs, 'en-ja', d, 19).news;
+      order = order.concat(ids(news));
+      answerIds(recs, ids(news), 'en-ja', true, d);
+      d = DateUtil.addDays(d, 1);
+    }
+    if (order.slice(0, 30).join() !== gradeIds(20).slice(10).join()) p.push('はじめに20級の残り30語（20-11〜20-40）が出ていない：' + order.slice(0, 3).join(', '));
+    if (order.slice(30).join() !== gradeIds(19).join()) p.push('20級の残りのあとに 19級の40語が ID の順に出ていない');
+    if (order.length !== 70) p.push('新しい単語が全部で ' + order.length + ' 語（期待：20級の残り30 + 19級40 = 70語）');
+    if (order.some(function (id) { return id.slice(0, 2) === '18'; })) p.push('19級なのに18級の単語が出た');
+    if (plan(recs, 'en-ja', d, 19).news.length !== 0) p.push('20級・19級を出し終えたのに、まだ新しい単語がある');
+    // 18級まで上がったら、出していない単語は全部（20級から順に）出る
+    var all = plan({}, 'ja-en', D0, 18).news;
+    if (ids(all).join() !== gradeIds(20).slice(0, 10).join()) p.push('18級で何も学習していないとき、20級から出ない：' + ids(all).slice(0, 3).join(', '));
+    // 20級のときは19級・18級は出ない
+    var g20 = {};
+    answerIds(g20, gradeIds(20), 'fill', true, D0);
+    if (plan(g20, 'fill', day(1), 20).news.length !== 0) p.push('20級のとき、20級を出し終えたあとに次の級の単語が出た');
     return p;
   })());
 

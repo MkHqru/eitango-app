@@ -38,7 +38,7 @@
   }
 
   // 今日の出題予定（js/schedule.js）から、1回分（最大10問）の問題を作る
-  //   順番は ①出題日を過ぎた復習の単語（すべての級）→ ②まだ出していない新しい単語（今の級＝newGrade だけ）
+  //   順番は ①出題日を過ぎた復習の単語（すべての級）→ ②まだ出していない新しい単語（今の級＝newGrade まで、級の低い順）
   //   4択の不正解の選択肢は、その単語と同じ級の単語から選ぶ
   function createSession(format, records, todayStr, newGrade, words) {
     words = words || window.WORDS;

@@ -93,7 +93,7 @@
   var FORMAT_LABELS = { 'en-ja': '英語 → 日本語', 'ja-en': '日本語 → 英語', 'fill': '例文穴埋め' };
   var quiz = null; // { format, isExam, grade, questions, index, correctCount, wrongWords, answered }
 
-  // 出題形式ごとの今日の予定（復習はすべての級、新しい単語は今の級から）
+  // 出題形式ごとの今日の予定（復習はすべての級、新しい単語は今の級まで＝今の級と下の級から）
   function planToday(userId, format) {
     var grade = GradeProgress.get(userId).currentGrade;
     return Schedule.planToday(window.WORDS, Records.getAll(userId), format, DateUtil.todayString(), grade);
@@ -320,7 +320,7 @@
       note.textContent = 'デモ版で用意している級はここまでです。';
     } else {
       msg.textContent = '🎉 合格！' + outcome.progress.currentGrade + '級に上がりました';
-      note.textContent = 'これから新しい単語は ' + outcome.progress.currentGrade + '級から出ます。' + quiz.grade + '級の単語の復習も続けて出ます。';
+      note.textContent = 'これから新しい単語は ' + outcome.progress.currentGrade + '級の単語も出ます（' + quiz.grade + '級でまだ出していない単語が先に出ます）。' + quiz.grade + '級の単語の復習も続けて出ます。';
     }
   }
 
