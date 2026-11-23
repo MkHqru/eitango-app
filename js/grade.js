@@ -38,6 +38,11 @@
     AppStorage.set(storageKey(userId), progress);
   }
 
+  // その生徒の級の記録を消す（先生が生徒を削除したとき）
+  function clear(userId) {
+    AppStorage.remove(storageKey(userId));
+  }
+
   // 次の級（最後の級なら null）
   function nextGrade(grade) {
     var i = GRADE_ORDER.indexOf(grade);
@@ -94,6 +99,7 @@
     EXAM_FORMAT: EXAM_FORMAT,
     get: get,
     save: save,
+    clear: clear,
     nextGrade: nextGrade,
     passCount: passCount,
     learnedCount: learnedCount,

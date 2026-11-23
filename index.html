@@ -161,11 +161,57 @@
       <button id="result-home" type="button" class="btn primary">ホームに戻る</button>
     </section>
 
-    <!-- 先生のホーム画面 -->
+    <!-- 先生のホーム画面（先生IDでログインしたときだけ表示） -->
     <section id="screen-teacher-home" class="card" hidden>
       <h2>先生ホーム</h2>
       <p>ID：<strong id="teacher-user-id"></strong></p>
+
+      <div class="section-head">
+        <h3 class="section-title">生徒一覧</h3>
+        <button id="add-student" type="button" class="btn-small">＋ 生徒を追加</button>
+      </div>
+      <p id="teacher-message" class="message info" hidden></p>
+      <p class="hint">生徒をタップすると、苦手な単語とアカウントの管理を表示します。3日以上学習していない生徒は赤で表示します。</p>
+      <ul id="student-list" class="student-list"></ul>
+
+      <h3 class="section-title">全体の苦手単語ランキング（上位10語）</h3>
+      <p class="hint">全生徒の不正解数の合計が多い順です。</p>
+      <div class="tabs" role="tablist" data-tabs="ranking">
+        <button type="button" role="tab" data-tab-format="en-ja" aria-selected="true">英→日</button>
+        <button type="button" role="tab" data-tab-format="ja-en" aria-selected="false">日→英</button>
+        <button type="button" role="tab" data-tab-format="fill" aria-selected="false">例文穴埋め</button>
+      </div>
+      <ol id="ranking-list" class="weak-list"></ol>
+      <p id="ranking-empty" class="hint" hidden>まだ間違えた単語はありません。</p>
+
       <button type="button" class="btn secondary" data-action="logout">ログアウト</button>
+    </section>
+
+    <!-- 先生：生徒の詳細 -->
+    <section id="screen-teacher-student" class="card" hidden>
+      <button id="back-to-list" type="button" class="btn-link">← 生徒一覧に戻る</button>
+      <h2 id="detail-id"></h2>
+      <div id="detail-summary"></div>
+
+      <h3 class="section-title">苦手な単語（不正解数の多い順）</h3>
+      <div class="tabs" role="tablist" data-tabs="detail">
+        <button type="button" role="tab" data-tab-format="en-ja" aria-selected="true">英→日</button>
+        <button type="button" role="tab" data-tab-format="ja-en" aria-selected="false">日→英</button>
+        <button type="button" role="tab" data-tab-format="fill" aria-selected="false">例文穴埋め</button>
+      </div>
+      <ol id="detail-weak-list" class="weak-list"></ol>
+      <p id="detail-weak-empty" class="hint" hidden>この形式で間違えた単語はありません。</p>
+
+      <h3 class="section-title">アカウントの管理</h3>
+      <p id="detail-message" class="message info" hidden></p>
+      <button id="reset-student-password" type="button" class="btn secondary">パスワードをリセット</button>
+      <p class="hint">初期パスワードに戻し、次にログインしたときにパスワードを変更してもらいます。</p>
+      <button id="delete-student" type="button" class="btn danger">この生徒を削除</button>
+      <div id="delete-confirm" class="confirm-box" hidden>
+        <p><strong id="delete-confirm-id"></strong> を削除します。学習の記録もすべて消え、元に戻せません。よろしいですか？</p>
+        <button id="delete-confirm-yes" type="button" class="btn danger-fill">削除する</button>
+        <button id="delete-confirm-no" type="button" class="btn secondary">やめる</button>
+      </div>
     </section>
   </main>
 
@@ -177,6 +223,7 @@
   <script src="js/records.js"></script>
   <script src="js/grade.js"></script>
   <script src="js/quiz.js"></script>
+  <script src="js/teacher.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
