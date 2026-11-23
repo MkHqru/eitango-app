@@ -6,15 +6,25 @@
 
   var USERS_KEY = 'users';
   var SESSION_KEY = 'session';
+  var LAST_NUMBER_KEY = 'lastStudentNumber'; // これまでに使った生徒IDの番号の最大（削除したIDを使い回さないため）
+  var STUDENT_PREFIX = 'juku';
+  var INITIAL_STUDENT_PASSWORD = '1234'; // デモ限定・本番では使わない
 
   // デモ用の初期アカウント（デモ限定・本番では使わない）
   function initialUsers() {
     var users = {};
     for (var i = 1; i <= 5; i++) {
-      users['juku00' + i] = { role: 'student', password: '1234', mustChangePassword: true };
+      users[studentId(i)] = { role: 'student', password: INITIAL_STUDENT_PASSWORD, mustChangePassword: true };
     }
     users.teacher = { role: 'teacher', password: 'admin', mustChangePassword: true };
     return users;
+  }
+
+  // 生徒ID：juku + 3けたの番号（juku001、juku006 など）
+  function studentId(n) {
+    var s = String(n);
+    while (s.length < 3) s = '0' + s;
+    return STUDENT_PREFIX + s;
   }
 
   function getUsers() {
@@ -72,11 +82,77 @@
     AppStorage.set(USERS_KEY, initialUsers());
   }
 
+  // ---- 先生だけができる操作（先生でログインしていないときは何もしない）----
+  function isTeacher() {
+    var me = currentUser();
+    return !!me && me.role === 'teacher' && !me.mustChangePassword;
+  }
+
+  var NOT_TEACHER = '先生のIDでログインしてください。';
+
+  // 生徒のID一覧（ID順）
+  function listStudents() {
+    if (!isTeacher()) return [];
+    var users = getUsers();
+    return Object.keys(users).filter(function (id) { return users[id].role === 'student'; }).sort();
+  }
+
+  // 生徒IDの番号（juku006 → 6。生徒IDの形でなければ 0）
+  function studentNumber(id) {
+    var m = new RegExp('^' + STUDENT_PREFIX + '(\\d+)$').exec(id);
+    return m ? Number(m[1]) : 0;
+  }
+
+  // 生徒を追加する。IDは自動で連番（今いる生徒と、これまでに使った番号の続き）
+  // 結果：{ id: 'juku006' } または { error: 'メッセージ' }
+  function addStudent() {
+    if (!isTeacher()) return { error: NOT_TEACHER };
+    var users = getUsers();
+    var max = AppStorage.get(LAST_NUMBER_KEY) || 0;
+    Object.keys(users).forEach(function (id) {
+      max = Math.max(max, studentNumber(id));
+    });
+    var id = studentId(max + 1);
+    users[id] = { role: 'student', password: INITIAL_STUDENT_PASSWORD, mustChangePassword: true };
+    AppStorage.set(USERS_KEY, users);
+    AppStorage.set(LAST_NUMBER_KEY, max + 1);
+    return { id: id };
+  }
+
+  // パスワードを初期パスワードに戻し、次回ログイン時に変更させる。問題があればメッセージ、成功したら null
+  function resetStudentPassword(id) {
+    if (!isTeacher()) return NOT_TEACHER;
+    var users = getUsers();
+    if (!users[id] || users[id].role !== 'student') return id + ' という生徒はいません。';
+    users[id].password = INITIAL_STUDENT_PASSWORD;
+    users[id].mustChangePassword = true;
+    AppStorage.set(USERS_KEY, users);
+    return null;
+  }
+
+  // 生徒のアカウントを削除する（学習記録などの削除は js/teacher.js で行う）。問題があればメッセージ、成功したら null
+  function deleteStudent(id) {
+    if (!isTeacher()) return NOT_TEACHER;
+    var users = getUsers();
+    if (!users[id] || users[id].role !== 'student') return id + ' という生徒はいません。';
+    // 削除したIDの番号を覚えておき、次に追加するときに使い回さない
+    AppStorage.set(LAST_NUMBER_KEY, Math.max(AppStorage.get(LAST_NUMBER_KEY) || 0, studentNumber(id)));
+    delete users[id];
+    AppStorage.set(USERS_KEY, users);
+    return null;
+  }
+
   window.Auth = {
     login: login,
     logout: logout,
     currentUser: currentUser,
     changePassword: changePassword,
-    resetDemoData: resetDemoData
+    resetDemoData: resetDemoData,
+    INITIAL_STUDENT_PASSWORD: INITIAL_STUDENT_PASSWORD,
+    isTeacher: isTeacher,
+    listStudents: listStudents,
+    addStudent: addStudent,
+    resetStudentPassword: resetStudentPassword,
+    deleteStudent: deleteStudent
   };
 })();

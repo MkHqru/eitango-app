@@ -560,6 +560,168 @@
     return p;
   })());
 
+  // ---------- 先生画面 ----------
+  group('先生画面（js/teacher.js・js/auth.js）');
+
+  check('【#4 完成の条件1】生徒が学習すると数字に反映され、覚えた単語数・今日の復習は生徒画面と同じ計算になる', (function () {
+    var p = [], recs = {}, prog = progress0();
+    var s0 = Teacher.summarize(W, recs, prog, D0);
+    if (s0.lastStudied !== null || s0.accuracy !== null || s0.answered !== 0) p.push('学習前なのに数字がある');
+    answerIds(recs, ['20-01', '20-02', '20-03'], 'en-ja', true, D0);
+    answerIds(recs, ['20-04'], 'en-ja', false, D0);
+    answerIds(recs, ['20-01'], 'fill', false, day(1));
+    var s1 = Teacher.summarize(W, recs, prog, day(1));
+    if (s1.lastStudied !== day(1)) p.push('最後に学習した日が ' + s1.lastStudied);
+    if (s1.answered !== 5 || s1.accuracy !== 60) p.push('正答率が ' + s1.accuracy + '%（' + s1.answered + '回答）（期待：60%・5回答）');
+    Quiz.FORMATS.forEach(function (f) {
+      var pl = Schedule.planToday(W, recs, f, day(1), prog.currentGrade);
+      if (s1.reviews[f] !== pl.reviews.length) p.push(f + '：今日の復習が生徒画面と違う');
+      if (s1.mastered[f] !== pl.masteredCount) p.push(f + '：覚えた単語数が生徒画面と違う');
+    });
+    if (s1.reviews['en-ja'] !== 1) p.push('英→日の今日の復習が ' + s1.reviews['en-ja'] + '（間違えた1語のはず）');
+    var s3 = Teacher.summarize(W, recs, prog, day(3));
+    if (s3.reviews['en-ja'] !== 4) p.push('3日後の英→日の復習が ' + s3.reviews['en-ja'] + '（4語のはず）');
+    var r = {};
+    answerIds(r, ['20-05'], 'en-ja', true, D0);
+    [3, 7, 14, 30].reduce(function (d, gap) { answerIds(r, ['20-05'], 'en-ja', true, d); return DateUtil.addDays(d, gap); }, day(3));
+    if (Teacher.summarize(W, r, prog, day(400)).mastered['en-ja'] !== 1) p.push('覚えた単語数が増えない');
+    if (Teacher.summarize(W, recs, { currentGrade: 19, lastExamDate: null, allCleared: false }, D0).currentGrade !== 19) p.push('今の級が反映されない');
+    return p;
+  })());
+
+  check('【#4 完成の条件2】3日以上学習していない生徒・まだ学習していない生徒は強調表示の対象になる', (function () {
+    var p = [], recs = {}, prog = progress0();
+    if (!Teacher.summarize(W, recs, prog, D0).inactive) p.push('まだ学習していない生徒が対象にならない');
+    answerIds(recs, ['20-01'], 'en-ja', true, D0);
+    [[0, false], [1, false], [2, false], [3, true], [10, true]].forEach(function (c) {
+      var s1 = Teacher.summarize(W, recs, prog, day(c[0]));
+      if (s1.inactive !== c[1]) p.push(c[0] + '日後：' + (s1.inactive ? '強調される' : '強調されない'));
+      if (s1.daysSince !== c[0]) p.push(c[0] + '日後：学習していない日数が ' + s1.daysSince);
+    });
+    return p;
+  })());
+
+  check('苦手な単語は不正解数の多い順で、3つの出題形式ごとに別々・全体ランキングは全生徒の合計', (function () {
+    var p = [], a = {}, b = {};
+    answerIds(a, ['20-03'], 'en-ja', false, D0);
+    answerIds(a, ['20-03'], 'en-ja', false, day(1));
+    answerIds(a, ['20-01'], 'en-ja', false, D0);
+    answerIds(a, ['20-02'], 'en-ja', true, D0);
+    answerIds(a, ['20-09'], 'fill', false, D0);
+    answerIds(b, ['20-01'], 'en-ja', false, D0);
+    answerIds(b, ['20-01'], 'en-ja', false, day(1));
+    var wa = Teacher.weakWords(W, [a], 'en-ja');
+    if (ids(wa.map(function (x) { return x.word; })).join() !== '20-03,20-01') p.push('生徒Aの英→日の苦手単語：' + ids(wa.map(function (x) { return x.word; })).join());
+    if (wa[0].wrong !== 2) p.push('不正解数が ' + wa[0].wrong);
+    if (Teacher.weakWords(W, [a], 'ja-en').length !== 0) p.push('日→英に英→日の間違いが出た');
+    var wf = Teacher.weakWords(W, [a], 'fill');
+    if (wf.length !== 1 || wf[0].word.id !== '20-09') p.push('例文穴埋めの苦手単語が別に出ない');
+    var rk = Teacher.weakWords(W, [a, b], 'en-ja');
+    if (rk[0].word.id !== '20-01' || rk[0].wrong !== 3 || rk[0].students !== 2) p.push('全体ランキングの1位が ' + rk[0].word.id + '（' + rk[0].wrong + '回・' + rk[0].students + '人）（期待：20-01・3回・2人）');
+    var many = {};
+    answerIds(many, gradeIds(20), 'ja-en', false, D0);
+    if (Teacher.weakWords(W, [many], 'ja-en').length !== 10) p.push('上位10語に絞られていない');
+    return p;
+  })());
+
+  // アカウントの操作は保存データを書きかえるので、終わったら元のデータに戻す
+  function withSandbox(fn) {
+    var saved = {};
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i);
+      if (k.indexOf('eitango:') === 0) saved[k] = localStorage.getItem(k);
+    }
+    try {
+      AppStorage.clearAll();
+      Auth.resetDemoData();
+      return fn();
+    } catch (e) {
+      return ['エラー：' + e.message];
+    } finally {
+      AppStorage.clearAll();
+      Object.keys(saved).forEach(function (k) { localStorage.setItem(k, saved[k]); });
+    }
+  }
+
+  function loginTeacher() {
+    Auth.login('teacher', 'admin');
+    Auth.changePassword('sensei', 'sensei');
+  }
+
+  check('【#4 完成の条件3】パスワードをリセットした生徒は、初期パスワード → 変更画面の流れになる', withSandbox(function () {
+    var p = [];
+    Auth.login('juku001', '1234');
+    Auth.changePassword('neko99', 'neko99');
+    Auth.logout();
+    loginTeacher();
+    var err = Auth.resetStudentPassword('juku001');
+    if (err) p.push('リセットできない：' + err);
+    Auth.logout();
+    if (Auth.login('juku001', 'neko99')) p.push('リセット後も前のパスワードで入れる');
+    var me = Auth.login('juku001', '1234');
+    if (!me) p.push('初期パスワードで入れない');
+    else if (!me.mustChangePassword) p.push('パスワードの変更画面にならない');
+    return p;
+  }));
+
+  check('【#4 完成の条件4】生徒を追加すると juku006 が作られてログインできる。IDは連番で、削除したIDは使い回さない', withSandbox(function () {
+    var p = [];
+    loginTeacher();
+    var r1 = Auth.addStudent();
+    if (r1.id !== 'juku006') p.push('追加したIDが ' + (r1.id || r1.error));
+    var r2 = Auth.addStudent();
+    if (r2.id !== 'juku007') p.push('2人目のIDが ' + r2.id);
+    if (Auth.listStudents().join() !== 'juku001,juku002,juku003,juku004,juku005,juku006,juku007') p.push('生徒一覧：' + Auth.listStudents().join());
+    if (Teacher.deleteStudent('juku007')) p.push('削除できない');
+    if (Auth.addStudent().id !== 'juku008') p.push('追加した生徒を削除したあと、そのIDを使い回した');
+    if (Teacher.deleteStudent('juku008')) p.push('削除できない');
+    if (Auth.addStudent().id !== 'juku009') p.push('一番大きい番号の生徒を削除したあと、そのIDを使い回した');
+    Auth.logout();
+    var me = Auth.login('juku006', '1234');
+    if (!me || me.role !== 'student' || !me.mustChangePassword) p.push('juku006 / 1234 でログインして変更画面にならない');
+    return p;
+  }));
+
+  check('最初からいる juku005 を削除してから追加しても、juku005 を使い回さない（juku006 になる）', withSandbox(function () {
+    var p = [];
+    loginTeacher();
+    if (Teacher.deleteStudent('juku005')) p.push('削除できない');
+    var r = Auth.addStudent();
+    if (r.id !== 'juku006') p.push('追加したIDが ' + r.id);
+    return p;
+  }));
+
+  check('生徒を削除すると、アカウントと学習記録・級の記録が消える', withSandbox(function () {
+    var p = [];
+    Records.save('juku003', '20-01', 'en-ja', true);
+    GradeProgress.save('juku003', { currentGrade: 19, lastExamDate: null, allCleared: false });
+    loginTeacher();
+    var err = Teacher.deleteStudent('juku003');
+    if (err) p.push('削除できない：' + err);
+    if (Auth.listStudents().indexOf('juku003') !== -1) p.push('一覧に残っている');
+    if (Object.keys(Records.getAll('juku003')).length) p.push('学習記録が残っている');
+    if (GradeProgress.get('juku003').currentGrade !== 20) p.push('級の記録が残っている');
+    Auth.logout();
+    if (Auth.login('juku003', '1234')) p.push('削除した生徒でログインできる');
+    return p;
+  }));
+
+  check('【#4 完成の条件5】生徒のIDでログインしても、先生の操作・データは使えない', withSandbox(function () {
+    var p = [];
+    Auth.login('juku001', '1234');
+    Auth.changePassword('neko99', 'neko99');
+    if (Auth.isTeacher()) p.push('生徒が先生として扱われる');
+    if (Auth.listStudents().length) p.push('生徒一覧が見える');
+    if (!Auth.addStudent().error) p.push('生徒を追加できる');
+    if (!Auth.resetStudentPassword('juku002')) p.push('パスワードをリセットできる');
+    if (!Teacher.deleteStudent('juku002')) p.push('生徒を削除できる');
+    if (Teacher.studentReport('juku002') !== null || Teacher.ranking('en-ja').length) p.push('生徒の記録が見える');
+    Auth.logout();
+    Auth.login('teacher', 'admin'); // 先生でも、初回のパスワード変更前は使えない
+    if (Auth.isTeacher()) p.push('先生がパスワード変更前に先生画面を使える');
+    return p;
+  }));
+
   // ---------- 表示 ----------
   var total = 0, failed = 0;
   var resultsEl = document.getElementById('results');

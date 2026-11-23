@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var screens = ['login', 'change-password', 'student-home', 'quiz', 'result', 'teacher-home'];
+  var screens = ['login', 'change-password', 'student-home', 'quiz', 'result', 'teacher-home', 'teacher-student'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -32,10 +32,17 @@
       show('change-password');
       return;
     }
+    // 先生用の画面は、先生IDでログインしているときだけ表示する
     if (me.role === 'teacher') {
-      $('teacher-user-id').textContent = me.id;
-      show('teacher-home');
+      if (teacherView.studentId) {
+        renderTeacherStudent();
+      } else {
+        $('teacher-user-id').textContent = me.id;
+        renderTeacherHome();
+        show('teacher-home');
+      }
     } else {
+      teacherView.studentId = null;
       $('student-user-id').textContent = me.id;
       renderStudentHome(me.id);
       show('student-home');
@@ -44,6 +51,7 @@
 
   function logout() {
     Auth.logout();
+    teacherView.studentId = null;
     showMessage('login-error', '');
     showMessage('login-info', '');
     $('login-form').reset();
@@ -78,6 +86,7 @@
     if (!confirm('デモデータをすべて初期状態に戻します。よろしいですか？')) return;
     Auth.resetDemoData();
     quiz = null;
+    teacherView.studentId = null;
     updateDemoDate();
     $('login-form').reset();
     showMessage('login-error', '');
@@ -87,6 +96,181 @@
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-action="logout"]'), function (btn) {
     btn.addEventListener('click', logout);
+  });
+
+  // ---- 先生画面 ----
+  // 数字は js/teacher.js 経由で、生徒画面と同じ計算（js/schedule.js・js/grade.js）を使う
+  var teacherView = { studentId: null, rankingFormat: 'en-ja', detailFormat: 'en-ja' };
+  var SHORT_FORMAT = { 'en-ja': '英→日', 'ja-en': '日→英', 'fill': '穴埋め' };
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // 形式ごとの数（英→日 3・日→英 0・穴埋め 1）。形式ごとに折り返す
+  function perFormat(counts) {
+    var frag = document.createDocumentFragment();
+    Quiz.FORMATS.forEach(function (f, i) {
+      frag.appendChild(el('span', 'pf', SHORT_FORMAT[f] + ' ' + counts[f] + (i < Quiz.FORMATS.length - 1 ? '・' : '')));
+    });
+    return frag;
+  }
+
+  function gradeText(r) {
+    return r.allCleared ? r.currentGrade + '級 合格（デモ版の最後）' : '今の級 ' + r.currentGrade + '級';
+  }
+
+  function lastStudiedText(r) {
+    if (!r.lastStudied) return 'まだ学習していません';
+    var ago = r.daysSince === 0 ? '今日' : r.daysSince > 0 ? r.daysSince + '日前' : '';
+    return DateUtil.displayDate(r.lastStudied) + (ago ? '（' + ago + '）' : '');
+  }
+
+  function summaryGrid(r) {
+    var dl = el('dl', 'summary-grid');
+    [
+      ['最後に学習', lastStudiedText(r), r.inactive],
+      ['正答率', r.accuracy === null ? '—' : r.accuracy + '%（' + r.answered + '回答）'],
+      ['覚えた単語', perFormat(r.mastered)],
+      ['今日の復習の残り', perFormat(r.reviews)]
+    ].forEach(function (row) {
+      dl.appendChild(el('dt', '', row[0]));
+      var dd = el('dd', row[2] ? 'inactive-text' : '');
+      if (typeof row[1] === 'string') dd.textContent = row[1];
+      else dd.appendChild(row[1]);
+      dl.appendChild(dd);
+    });
+    return dl;
+  }
+
+  function inactiveBadge(r) {
+    return el('span', 'badge warn', r.lastStudied ? r.daysSince + '日学習なし' : '未学習');
+  }
+
+  function renderWeakList(listId, emptyId, items, showStudents) {
+    var list = $(listId);
+    list.textContent = '';
+    items.forEach(function (it) {
+      var li = el('li');
+      li.appendChild(el('span', 'en', it.word.en));
+      li.appendChild(document.createTextNode(' ' + it.word.ja + '（' + it.word.grade + '級）'));
+      li.appendChild(el('span', 'meta', '不正解 ' + it.wrong + '回' +
+        (showStudents ? '（' + it.students + '人）' : '・正解 ' + it.correct + '回')));
+      list.appendChild(li);
+    });
+    $(emptyId).hidden = items.length !== 0;
+  }
+
+  function updateTabs(name, format) {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-tabs="' + name + '"] button'), function (b) {
+      b.setAttribute('aria-selected', String(b.getAttribute('data-tab-format') === format));
+    });
+  }
+
+  function renderTeacherHome() {
+    var list = $('student-list');
+    list.textContent = '';
+    Teacher.allReports().forEach(function (r) {
+      var li = el('li');
+      var btn = el('button', 'student-item' + (r.inactive ? ' inactive' : ''));
+      btn.type = 'button';
+      btn.setAttribute('data-student', r.id);
+      var head = el('div', 'head');
+      head.appendChild(el('span', 'sid', r.id));
+      head.appendChild(el('span', 'badge', gradeText(r)));
+      if (r.inactive) head.appendChild(inactiveBadge(r));
+      btn.appendChild(head);
+      btn.appendChild(summaryGrid(r));
+      btn.addEventListener('click', function () { openStudent(r.id); });
+      li.appendChild(btn);
+      list.appendChild(li);
+    });
+    updateTabs('ranking', teacherView.rankingFormat);
+    renderWeakList('ranking-list', 'ranking-empty', Teacher.ranking(teacherView.rankingFormat), true);
+  }
+
+  function openStudent(id) {
+    teacherView.studentId = id;
+    $('delete-confirm').hidden = true;
+    showMessage('detail-message', '');
+    showMessage('teacher-message', '');
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function renderTeacherStudent() {
+    var r = Teacher.studentReport(teacherView.studentId);
+    if (!r || Auth.listStudents().indexOf(teacherView.studentId) === -1) {
+      teacherView.studentId = null;
+      render();
+      return;
+    }
+    $('detail-id').textContent = r.id;
+    var box = $('detail-summary');
+    box.textContent = '';
+    var head = el('div', 'head');
+    head.appendChild(el('span', 'badge', gradeText(r)));
+    if (r.inactive) head.appendChild(inactiveBadge(r));
+    box.appendChild(head);
+    box.appendChild(summaryGrid(r));
+    updateTabs('detail', teacherView.detailFormat);
+    renderWeakList('detail-weak-list', 'detail-weak-empty', Teacher.studentWeakWords(r.id, teacherView.detailFormat), false);
+    $('delete-confirm-id').textContent = r.id;
+    show('teacher-student');
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tabs]'), function (group) {
+    var name = group.getAttribute('data-tabs');
+    Array.prototype.forEach.call(group.querySelectorAll('button'), function (b) {
+      b.addEventListener('click', function () {
+        teacherView[name + 'Format'] = b.getAttribute('data-tab-format');
+        render();
+      });
+    });
+  });
+
+  $('add-student').addEventListener('click', function () {
+    var result = Auth.addStudent();
+    showMessage('teacher-message', result.error ||
+      result.id + ' を追加しました。初期パスワードは ' + Auth.INITIAL_STUDENT_PASSWORD + ' です（はじめてのログインで変更します）。');
+    render();
+  });
+
+  $('back-to-list').addEventListener('click', function () {
+    teacherView.studentId = null;
+    render();
+  });
+
+  $('reset-student-password').addEventListener('click', function () {
+    var id = teacherView.studentId;
+    var error = Auth.resetStudentPassword(id);
+    showMessage('detail-message', error ||
+      id + ' のパスワードを初期パスワード（' + Auth.INITIAL_STUDENT_PASSWORD + '）に戻しました。次にログインしたとき、パスワードの変更画面が出ます。');
+  });
+
+  // 削除は画面の中で確認する（ブラウザの confirm() は使わない）
+  $('delete-student').addEventListener('click', function () {
+    $('delete-confirm').hidden = false;
+  });
+
+  $('delete-confirm-no').addEventListener('click', function () {
+    $('delete-confirm').hidden = true;
+  });
+
+  $('delete-confirm-yes').addEventListener('click', function () {
+    var id = teacherView.studentId;
+    var error = Teacher.deleteStudent(id);
+    $('delete-confirm').hidden = true;
+    if (error) {
+      showMessage('detail-message', error);
+      return;
+    }
+    teacherView.studentId = null;
+    showMessage('teacher-message', id + ' を削除しました。');
+    render();
   });
 
   // ---- 単語テスト ----
