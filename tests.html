@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>チェック用テストページ（英単語学習アプリ）</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .summary { font-size: 20px; font-weight: bold; text-align: center; }
+    .summary.ok { color: #1e7d32; }
+    .summary.ng { color: #c0392b; }
+    .test-group h3 { margin: 20px 0 4px; font-size: 16px; }
+    .test-list { margin: 0; padding: 0; list-style: none; font-size: 14px; }
+    .test-list li { padding: 6px 0; border-bottom: 1px solid #e4e8ee; overflow-wrap: anywhere; }
+    .test-list .detail { display: block; margin-top: 2px; color: #c0392b; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <span class="demo-badge">デモ版</span>
+    <h1 class="app-title">チェック用テストページ</h1>
+  </header>
+  <main class="container">
+    <section class="card">
+      <p>単語データと判定のしくみを自動でチェックします。ページを開くと実行されます。</p>
+      <p id="summary" class="summary">チェック中…</p>
+      <div id="results"></div>
+      <p><a href="index.html">アプリに戻る</a></p>
+    </section>
+  </main>
+
+  <script src="js/words.js"></script>
+  <script src="js/quiz.js"></script>
+  <script src="js/tests.js"></script>
+</body>
+</html>

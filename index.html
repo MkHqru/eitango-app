@@ -50,26 +50,44 @@
       <h2>生徒ホーム</h2>
       <p>ID：<strong id="student-user-id"></strong></p>
       <h3 class="section-title">単語テスト（1回10問）</h3>
-      <button type="button" class="btn primary" data-direction="en-ja">英語 → 日本語（4択）</button>
-      <button type="button" class="btn primary" data-direction="ja-en">日本語 → 英語（入力）</button>
+      <p class="step-label">① 級を選ぶ</p>
+      <div class="segmented" role="radiogroup" aria-label="級">
+        <label><input type="radio" name="grade" value="20" checked><span>20級</span></label>
+        <label><input type="radio" name="grade" value="19"><span>19級</span></label>
+        <label><input type="radio" name="grade" value="18"><span>18級</span></label>
+      </div>
+      <p class="step-label">② 出題形式を選んで始める</p>
+      <button type="button" class="btn primary" data-format="en-ja">英語 → 日本語（4択）</button>
+      <button type="button" class="btn primary" data-format="ja-en">日本語 → 英語（入力）</button>
+      <button type="button" class="btn primary" data-format="fill">例文穴埋め（入力）</button>
       <button type="button" class="btn secondary" data-action="logout">ログアウト</button>
     </section>
 
     <!-- 単語テスト画面 -->
     <section id="screen-quiz" class="card" hidden>
       <div class="quiz-header">
-        <span id="quiz-direction-label"></span>
+        <span id="quiz-label"></span>
         <span id="quiz-progress"></span>
       </div>
-      <p id="quiz-pos" class="quiz-pos"></p>
-      <p id="quiz-prompt" class="quiz-prompt"></p>
+
+      <!-- 英→日・日→英：単語を表示 -->
+      <div id="quiz-word-area">
+        <p id="quiz-pos" class="quiz-pos"></p>
+        <p id="quiz-prompt" class="quiz-prompt"></p>
+      </div>
+
+      <!-- 例文穴埋め：日本語の例文と、空所のある英文を表示 -->
+      <div id="quiz-sentence-area" class="sentence-area" hidden>
+        <p id="quiz-sentence-ja" class="sentence-ja"></p>
+        <p id="quiz-sentence-en" class="sentence-en" lang="en"></p>
+      </div>
 
       <!-- 英→日：4択 -->
       <div id="quiz-choices" class="choices" hidden></div>
 
-      <!-- 日→英：入力式（自動大文字化・自動修正をオフ） -->
+      <!-- 日→英・例文穴埋め：入力式（自動大文字化・自動修正をオフ） -->
       <form id="quiz-input-form" autocomplete="off" hidden>
-        <label for="quiz-input">英語で入力</label>
+        <label id="quiz-input-label" for="quiz-input">英語で入力</label>
         <input id="quiz-input" type="text" lang="en" inputmode="latin"
                autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false">
         <button type="submit" class="btn primary">答える</button>
