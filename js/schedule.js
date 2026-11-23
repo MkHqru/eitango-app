@@ -74,15 +74,21 @@
   // 今日の出題予定を作る（出題形式ごと）
   //   reviews : 出題日を過ぎた復習の単語（出題日の古い順）
   //   news    : 今日出す新しい単語（1日10語まで、級の低い順）
+  //             newGrade（今の級）を渡したら、今の級まで（今の級と、それより下の級）の単語だけから出す。
+  //             合格したあとも、前の級でまだ出していない単語が先に出るので、出ない単語がなくなる
   //   queue   : 出題する順（①復習 → ②新しい単語）
-  function planToday(words, records, format, todayStr) {
+  // 復習は、級に関係なく、それまでに学習したすべての単語から出す
+  function planToday(words, records, format, todayStr, newGrade) {
     records = records || {};
     var sorted = sortByGrade(words);
     var reviews = [], unseen = [], masteredCount = 0, introducedToday = 0;
 
     sorted.forEach(function (w) {
       var rec = records[recordKey(w.id, format)];
-      if (!rec) { unseen.push(w); return; }
+      if (!rec) {
+        if (newGrade === undefined || GRADE_ORDER.indexOf(w.grade) <= GRADE_ORDER.indexOf(newGrade)) unseen.push(w);
+        return;
+      }
       if (rec.firstAnswered === todayStr) introducedToday++;
       if (rec.mastered) masteredCount++;
       else if (isDue(rec, todayStr)) reviews.push({ w: w, due: rec.due || '' });

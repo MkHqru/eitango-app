@@ -280,7 +280,8 @@
 
   var W = window.WORDS;
   function ids(list) { return list.map(function (w) { return w.id; }); }
-  function plan(recs, format, d) { return Schedule.planToday(W, recs, format, d); }
+  // grade：今の級（省略すると20級）
+  function plan(recs, format, d, grade) { return Schedule.planToday(W, recs, format, d, grade || 20); }
   function answerIds(recs, list, format, ok, d) {
     list.forEach(function (id) {
       var k = Schedule.recordKey(id, format);
@@ -289,7 +290,7 @@
   }
   function reviewHas(recs, id, d) { return ids(plan(recs, 'en-ja', d).reviews).indexOf(id) !== -1; }
 
-  check('【完成の条件1】間違える → その日は出ない → +1日で復習に出る', (function () {
+  check('【#3 完成の条件1】間違える → その日は出ない → +1日で復習に出る', (function () {
     var recs = {}, p = [];
     answerIds(recs, ['20-01'], 'en-ja', false, D0);
     if (reviewHas(recs, '20-01', D0)) p.push('同じ日に復習に出た');
@@ -297,7 +298,7 @@
     return p;
   })());
 
-  check('【完成の条件2】正解する → +1日・+2日では出ない → +3日（合計）で出る', (function () {
+  check('【#3 完成の条件2】正解する → +1日・+2日では出ない → +3日（合計）で出る', (function () {
     var recs = {}, p = [];
     answerIds(recs, ['20-01'], 'en-ja', true, D0);
     if (reviewHas(recs, '20-01', day(1))) p.push('+1日で出た');
@@ -307,7 +308,7 @@
     return p;
   })());
 
-  check('【完成の条件3】続けて正解すると 7日・14日・30日と間隔が延び、覚えたら出なくなる', (function () {
+  check('【#3 完成の条件3】続けて正解すると 7日・14日・30日と間隔が延び、覚えたら出なくなる', (function () {
     var recs = {}, p = [], d = D0;
     answerIds(recs, ['20-01'], 'en-ja', true, d); // 次は3日後
     [7, 14, 30].forEach(function (gap) {
@@ -325,7 +326,7 @@
     return p;
   })());
 
-  check('【完成の条件4】途中で間違えると、翌日に出る状態に戻る', (function () {
+  check('【#3 完成の条件4】途中で間違えると、翌日に出る状態に戻る', (function () {
     var recs = {}, p = [];
     answerIds(recs, ['20-01'], 'en-ja', true, D0);         // → 3日後
     answerIds(recs, ['20-01'], 'en-ja', true, day(3));     // → 10日目
@@ -335,7 +336,7 @@
     return p;
   })());
 
-  check('【完成の条件5】新しい単語は1日10語まで。次の日はまた10語', (function () {
+  check('【#3 完成の条件5】新しい単語は1日10語まで。次の日はまた10語', (function () {
     var recs = {}, p = [];
     var first = plan(recs, 'en-ja', D0);
     if (first.news.length !== 10) p.push('はじめの日の新しい単語が ' + first.news.length + ' 語');
@@ -361,22 +362,19 @@
     return p;
   })());
 
-  check('新しい単語は級の低い順（20級 → 19級 → 18級）に出る', (function () {
+  check('今の級が20級なら、新しい単語は20級から ID の順に出て、40語出し終えたら0語になる（次の級は出ない）', (function () {
     var recs = {}, p = [], d = D0, order = [];
-    for (var i = 0; i < 12; i++) {
-      var news = plan(recs, 'en-ja', d).news;
+    for (var i = 0; i < 6; i++) {
+      var news = plan(recs, 'en-ja', d, 20).news;
       order = order.concat(ids(news));
       answerIds(recs, ids(news), 'en-ja', true, d);
       d = DateUtil.addDays(d, 1);
     }
-    var grades = order.map(function (id) { return Number(id.slice(0, 2)); });
-    for (var k = 1; k < grades.length; k++) {
-      if (grades[k] > grades[k - 1]) { p.push(order[k - 1] + ' のあとに ' + order[k] + ' が出た'); break; }
-    }
+    if (order.length !== 40) p.push('新しい単語が全部で ' + order.length + ' 語（期待：40語）');
+    var notGrade20 = order.filter(function (id) { return id.slice(0, 2) !== '20'; });
+    if (notGrade20.length) p.push('20級以外が出た：' + notGrade20.slice(0, 3).join(', '));
     if (order.slice(0, 10).join() !== ['20-01','20-02','20-03','20-04','20-05','20-06','20-07','20-08','20-09','20-10'].join()) p.push('はじめの10語が 20-01〜20-10 になっていない');
-    if (order[40] !== '19-01') p.push('20級の40語のあとが ' + order[40]);
-    if (order[80] !== '18-01') p.push('19級の40語のあとが ' + order[80]);
-    if (order.length !== 120) p.push('新しい単語が全部で ' + order.length + ' 語');
+    if (plan(recs, 'en-ja', d, 19).news[0] && plan(recs, 'en-ja', d, 19).news[0].id !== '19-01') p.push('今の級を19級にしたとき、はじめの新しい単語が 19-01 でない');
     return p;
   })());
 
@@ -396,7 +394,7 @@
     // 20級の単語を全部「今日が復習日」にして、問題を作る
     answerIds(recs, ids(W.filter(function (w) { return w.grade === 20; })), 'en-ja', false, day(-1));
     for (var i = 0; i < 100 && !p.length; i++) {
-      var qs = Quiz.createSession('en-ja', recs, D0);
+      var qs = Quiz.createSession('en-ja', recs, D0, 20);
       if (qs.length !== Quiz.QUESTION_COUNT) p.push('問題数が ' + qs.length);
       qs.forEach(function (q) {
         var c = q.choices;
@@ -410,6 +408,156 @@
       });
     }
     return p.slice(0, 5);
+  })());
+
+  // ---------- 級と合格テスト ----------
+  group('級と合格テスト（js/grade.js）');
+
+  function progress0() { return { currentGrade: 20, lastExamDate: null, allCleared: false }; }
+  function gradeIds(g) { return ids(W.filter(function (w) { return w.grade === g; })); }
+  function exam(prog, recs, d) { return GradeProgress.examStatus(prog, W, recs, d); }
+
+  check('【#9 完成の条件1】新しい生徒は20級から始まり、19級・18級の新しい単語は出ない（3つの形式すべて）', (function () {
+    var p = [];
+    var prog = GradeProgress.get('__test_new_student__'); // 保存されていない生徒
+    if (prog.currentGrade !== 20) p.push('最初の級が ' + prog.currentGrade);
+    Quiz.FORMATS.forEach(function (f) {
+      var recs = {}, d = D0, seen = [];
+      for (var i = 0; i < 8; i++) {
+        var news = plan(recs, f, d, prog.currentGrade).news;
+        seen = seen.concat(ids(news));
+        answerIds(recs, ids(news), f, true, d);
+        d = DateUtil.addDays(d, 1);
+      }
+      var other = seen.filter(function (id) { return id.slice(0, 2) !== '20'; });
+      if (other.length) p.push(f + '：' + other[0] + ' が出た');
+      if (seen.length !== 40) p.push(f + '：新しい単語が ' + seen.length + ' 語（20級の40語を出し終えたら0語のはず）');
+    });
+    return p;
+  })());
+
+  check('【#9 完成の条件2】例文穴埋めで20級の40語すべてに答えるまで、合格テストは受けられない', (function () {
+    var p = [], recs = {}, prog = progress0();
+    var all = gradeIds(20);
+    var s0 = exam(prog, recs, D0);
+    if (s0.canTake) p.push('何も学習していないのに受けられる');
+    if (s0.reason !== '例文穴埋めで、あと 40 語答えると受けられます') p.push('理由の表示：' + s0.reason);
+    answerIds(recs, all.slice(0, 32), 'fill', true, D0);
+    var s1 = exam(prog, recs, D0);
+    if (s1.canTake || s1.learned !== 32 || s1.reason !== '例文穴埋めで、あと 8 語答えると受けられます') p.push('32語のとき：' + s1.learned + ' / ' + s1.total + ' ' + s1.reason);
+    answerIds(recs, all, 'en-ja', true, D0); // 英→日でいくら答えても数えない
+    answerIds(recs, all, 'ja-en', true, D0);
+    if (exam(prog, recs, D0).canTake) p.push('英→日・日→英で答えた分で受けられるようになった');
+    answerIds(recs, all.slice(32), 'fill', false, D0); // 不正解でも「答えた」に数える
+    var s2 = exam(prog, recs, D0);
+    if (!s2.canTake || s2.learned !== 40) p.push('40語答えたのに受けられない：' + s2.reason);
+    return p;
+  })());
+
+  check('合格テストの問題：今の級の40語すべての例文穴埋めで、順番はランダム', (function () {
+    var p = [], orders = {};
+    for (var i = 0; i < 20; i++) {
+      var qs = Quiz.createExam(19);
+      if (qs.length !== 40) { p.push('問題数が ' + qs.length); break; }
+      if (!qs.every(function (q) { return q.format === 'fill' && q.word.grade === 19; })) { p.push('例文穴埋め以外か、19級以外の問題がある'); break; }
+      var u = {}; qs.forEach(function (q) { u[q.word.id] = true; });
+      if (Object.keys(u).length !== 40) { p.push('同じ単語が2回出た'); break; }
+      orders[ids(qs.map(function (q) { return q.word; })).join()] = true;
+    }
+    if (!p.length && Object.keys(orders).length < 2) p.push('20回作っても順番が同じ');
+    return p;
+  })());
+
+  check('【#9 完成の条件3】36問以上正解で19級に上がり、19級の新しい単語が出るようになる', (function () {
+    var p = [];
+    if (GradeProgress.passCount(40) !== 36) p.push('合格ラインが ' + GradeProgress.passCount(40) + '問');
+    var r = GradeProgress.applyExamResult(progress0(), 36, 40, D0);
+    if (!r.passed || r.progress.currentGrade !== 19) p.push('36問で 合格=' + r.passed + '、級=' + r.progress.currentGrade);
+    var r40 = GradeProgress.applyExamResult(progress0(), 40, 40, D0);
+    if (!r40.passed || r40.progress.currentGrade !== 19) p.push('40問で合格にならない');
+    var recs = {};
+    answerIds(recs, gradeIds(20), 'fill', true, day(-5)); // 20級は学習ずみ
+    var news = plan(recs, 'fill', day(1), r.progress.currentGrade).news;
+    if (news.length !== 10 || !news.every(function (w) { return w.grade === 19; })) p.push('合格後の新しい単語：' + ids(news).slice(0, 3).join(', '));
+    return p;
+  })());
+
+  check('【#9 完成の条件4】35問以下は不合格。同じ日は再挑戦できず、+1日で再挑戦できる', (function () {
+    var p = [], recs = {};
+    answerIds(recs, gradeIds(20), 'fill', true, D0);
+    var r = GradeProgress.applyExamResult(progress0(), 35, 40, D0);
+    if (r.passed || r.progress.currentGrade !== 20) p.push('35問で 合格=' + r.passed + '、級=' + r.progress.currentGrade);
+    var same = exam(r.progress, recs, D0);
+    if (same.canTake) p.push('同じ日に再挑戦できる');
+    if (same.reason !== '再挑戦は明日から（合格テストは1日1回まで）') p.push('理由の表示：' + same.reason);
+    if (!exam(r.progress, recs, day(1)).canTake) p.push('+1日しても再挑戦できない');
+    var r0 = GradeProgress.applyExamResult(progress0(), 0, 40, D0);
+    if (r0.passed) p.push('0問でも合格になった');
+    return p;
+  })());
+
+  check('【#9 完成の条件5】19級に上がっても、20級の単語の復習は出る', (function () {
+    var p = [], recs = {};
+    answerIds(recs, ['20-01', '20-02'], 'fill', false, D0);
+    answerIds(recs, gradeIds(20).slice(2), 'fill', true, D0); // 20級の残りは正解（3日後まで出ない）
+    answerIds(recs, ['20-03'], 'en-ja', true, D0);
+    var revFill = ids(plan(recs, 'fill', day(1), 19).reviews);
+    if (revFill.indexOf('20-01') === -1 || revFill.indexOf('20-02') === -1) p.push('例文穴埋め：20級の復習が出ない（' + revFill.join(', ') + '）');
+    var revEnJa = ids(plan(recs, 'en-ja', day(3), 19).reviews);
+    if (revEnJa.indexOf('20-03') === -1) p.push('英→日：20級の復習が出ない');
+    var q = ids(plan(recs, 'fill', day(1), 19).queue);
+    if (q[0].slice(0, 2) !== '20' || q[2].slice(0, 2) !== '19') p.push('並び順が「20級の復習 → 19級の新しい単語」になっていない：' + q.slice(0, 4).join(', '));
+    return p;
+  })());
+
+  check('新しい単語は「今の級まで（今の級と下の級）」から、級の低い順に出る（前の級の残りが先に出る）', (function () {
+    var p = [];
+    // 英→日で20級を10語だけ出したあと、19級に上がった場合
+    var recs = {};
+    answerIds(recs, gradeIds(20).slice(0, 10), 'en-ja', true, D0);
+    var d = day(1), order = [];
+    for (var i = 0; i < 8; i++) {
+      var news = plan(recs, 'en-ja', d, 19).news;
+      order = order.concat(ids(news));
+      answerIds(recs, ids(news), 'en-ja', true, d);
+      d = DateUtil.addDays(d, 1);
+    }
+    if (order.slice(0, 30).join() !== gradeIds(20).slice(10).join()) p.push('はじめに20級の残り30語（20-11〜20-40）が出ていない：' + order.slice(0, 3).join(', '));
+    if (order.slice(30).join() !== gradeIds(19).join()) p.push('20級の残りのあとに 19級の40語が ID の順に出ていない');
+    if (order.length !== 70) p.push('新しい単語が全部で ' + order.length + ' 語（期待：20級の残り30 + 19級40 = 70語）');
+    if (order.some(function (id) { return id.slice(0, 2) === '18'; })) p.push('19級なのに18級の単語が出た');
+    if (plan(recs, 'en-ja', d, 19).news.length !== 0) p.push('20級・19級を出し終えたのに、まだ新しい単語がある');
+    // 18級まで上がったら、出していない単語は全部（20級から順に）出る
+    var all = plan({}, 'ja-en', D0, 18).news;
+    if (ids(all).join() !== gradeIds(20).slice(0, 10).join()) p.push('18級で何も学習していないとき、20級から出ない：' + ids(all).slice(0, 3).join(', '));
+    // 20級のときは19級・18級は出ない
+    var g20 = {};
+    answerIds(g20, gradeIds(20), 'fill', true, D0);
+    if (plan(g20, 'fill', day(1), 20).news.length !== 0) p.push('20級のとき、20級を出し終えたあとに次の級の単語が出た');
+    return p;
+  })());
+
+  check('合格テストの答えも、通常の回答と同じように記録に反映される', (function () {
+    var p = [];
+    var rec = Schedule.applyAnswer(null, true, D0);
+    var after = Schedule.applyAnswer(rec, false, day(1)); // 合格テストで間違えた
+    if (after.wrong !== 1 || after.due !== day(2)) p.push('間違えたのに記録が変わらない');
+    // app.js では合格テストの問題も format 'fill' で Records.save するので、例文穴埋めの記録になる
+    if (Quiz.createExam(20)[0].format !== GradeProgress.EXAM_FORMAT || GradeProgress.EXAM_FORMAT !== 'fill') p.push('合格テストの形式が例文穴埋めになっていない');
+    return p;
+  })());
+
+  check('18級に合格したら「デモ版で用意している級はここまで」になる', (function () {
+    var p = [], recs = {};
+    var prog = { currentGrade: 18, lastExamDate: null, allCleared: false };
+    var r = GradeProgress.applyExamResult(prog, 38, 40, D0);
+    if (!r.passed || !r.progress.allCleared) p.push('18級に合格しても終わりにならない');
+    if (r.progress.currentGrade !== 18) p.push('級が ' + r.progress.currentGrade + ' になった');
+    answerIds(recs, gradeIds(18), 'fill', true, D0);
+    var s1 = exam(r.progress, recs, day(5));
+    if (s1.canTake || s1.reason !== 'デモ版で用意している級はここまでです') p.push('合格後も合格テストが受けられる：' + s1.reason);
+    if (GradeProgress.nextGrade(18) !== null || GradeProgress.nextGrade(20) !== 19 || GradeProgress.nextGrade(19) !== 18) p.push('次の級の計算がおかしい');
+    return p;
   })());
 
   // ---------- 表示 ----------

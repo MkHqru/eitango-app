@@ -202,3 +202,21 @@ input:focus { outline: 2px solid #2b5fab; border-color: transparent; }
 }
 .stats strong { display: block; font-size: 20px; color: #222; }
 .done-message { margin: 10px 0 0; font-weight: bold; color: #1e7d32; text-align: center; }
+
+/* 今の級と合格テスト */
+.grade-card {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #eef3fb;
+}
+.grade-now { margin: 0; font-size: 14px; color: #5a6472; }
+.grade-now strong { margin-left: 8px; font-size: 26px; color: #2b5fab; }
+.grade-learned { margin: 4px 0 0; font-size: 14px; }
+.progress { height: 8px; margin-top: 6px; border-radius: 999px; background: #d5dfee; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: #2b5fab; }
+#exam-button:disabled { background: #b8c3d3; color: #fff; cursor: not-allowed; }
+.exam-reason { margin: 8px 0 0; font-size: 14px; color: #8a4b00; text-align: center; }
+.exam-result { margin: 8px 0 0; font-size: 20px; font-weight: bold; text-align: center; }
+.exam-result.pass { color: #1e7d32; }
+.exam-result.fail { color: #c0392b; }

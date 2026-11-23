@@ -60,8 +60,19 @@
     <section id="screen-student-home" class="card" hidden>
       <h2>生徒ホーム</h2>
       <p>ID：<strong id="student-user-id"></strong></p>
+
+      <!-- 今の級と合格テスト -->
+      <div class="grade-card">
+        <p class="grade-now">今の級<strong id="current-grade"></strong></p>
+        <p class="grade-learned">例文穴埋めで学習した語数：<strong id="grade-learned"></strong></p>
+        <div class="progress"><div id="grade-progress-bar" class="progress-bar"></div></div>
+        <button id="exam-button" type="button" class="btn primary"></button>
+        <p id="exam-reason" class="exam-reason" hidden></p>
+        <p id="all-cleared" class="done-message" hidden>🎉 18級に合格しました！<br>デモ版で用意している級はここまでです</p>
+      </div>
+
       <h3 class="section-title">今日の単語テスト（1回10問まで）</h3>
-      <p class="hint">復習の単語 → 新しい単語（1日10語まで）の順に出ます。</p>
+      <p class="hint">復習の単語 → 新しい単語（今の級までの単語から、1日10語まで）の順に出ます。</p>
       <div id="format-list" class="format-list">
         <div class="format-card" data-format-card="en-ja">
           <h4>英語 → 日本語（4択）</h4>
@@ -136,8 +147,10 @@
 
     <!-- 結果画面 -->
     <section id="screen-result" class="card" hidden>
-      <h2>結果</h2>
+      <h2 id="result-title">結果</h2>
       <p id="result-score" class="result-score"></p>
+      <p id="result-exam" class="exam-result" hidden></p>
+      <p id="result-exam-note" class="hint" hidden></p>
       <div id="result-wrong-area">
         <h3 class="section-title">間違えた単語</h3>
         <ul id="result-wrong-list" class="word-list"></ul>
@@ -162,6 +175,7 @@
   <script src="js/words.js"></script>
   <script src="js/schedule.js"></script>
   <script src="js/records.js"></script>
+  <script src="js/grade.js"></script>
   <script src="js/quiz.js"></script>
   <script src="js/app.js"></script>
 </body>

@@ -91,15 +91,32 @@
 
   // ---- 単語テスト ----
   var FORMAT_LABELS = { 'en-ja': '英語 → 日本語', 'ja-en': '日本語 → 英語', 'fill': '例文穴埋め' };
-  var quiz = null; // { format, questions, index, correctCount, wrongWords, answered }
+  var quiz = null; // { format, isExam, grade, questions, index, correctCount, wrongWords, answered }
 
-  // 出題形式ごとの今日の予定（復習・新しい単語・覚えた単語）
+  // 出題形式ごとの今日の予定（復習はすべての級、新しい単語は今の級まで＝今の級と下の級から）
   function planToday(userId, format) {
-    return Schedule.planToday(window.WORDS, Records.getAll(userId), format, DateUtil.todayString());
+    var grade = GradeProgress.get(userId).currentGrade;
+    return Schedule.planToday(window.WORDS, Records.getAll(userId), format, DateUtil.todayString(), grade);
   }
 
-  // 生徒ホーム：出題形式ごとに、今日の復習数・新しい単語数・覚えた単語数を表示
+  function examStatus(userId) {
+    return GradeProgress.examStatus(GradeProgress.get(userId), window.WORDS, Records.getAll(userId), DateUtil.todayString());
+  }
+
+  // 生徒ホーム：今の級と合格テスト、出題形式ごとの今日の予定を表示
   function renderStudentHome(userId) {
+    var progress = GradeProgress.get(userId);
+    var status = examStatus(userId);
+    $('current-grade').textContent = progress.currentGrade + '級';
+    $('grade-learned').textContent = status.learned + ' / ' + status.total;
+    $('grade-progress-bar').style.width = (status.total ? status.learned / status.total * 100 : 0) + '%';
+    $('exam-button').textContent = progress.currentGrade + '級の合格テストを受ける（' + status.total + '問）';
+    $('exam-button').disabled = !status.canTake;
+    $('exam-button').hidden = progress.allCleared;
+    $('exam-reason').textContent = status.reason;
+    $('exam-reason').hidden = progress.allCleared || status.canTake;
+    $('all-cleared').hidden = !progress.allCleared;
+
     Quiz.FORMATS.forEach(function (format) {
       var plan = planToday(userId, format);
       var card = document.querySelector('[data-format-card="' + format + '"]');
@@ -112,23 +129,36 @@
     });
   }
 
+  function beginQuiz(q) {
+    quiz = q;
+    quiz.index = 0;
+    quiz.correctCount = 0;
+    quiz.wrongWords = [];
+    quiz.answered = false;
+    show('quiz');
+    showQuestion();
+  }
+
   function startQuiz(format) {
     var me = Auth.currentUser();
-    var questions = Quiz.createSession(format, Records.getAll(me.id), DateUtil.todayString());
+    var grade = GradeProgress.get(me.id).currentGrade;
+    var questions = Quiz.createSession(format, Records.getAll(me.id), DateUtil.todayString(), grade);
     if (questions.length === 0) {
       render();
       return;
     }
-    quiz = {
-      format: format,
-      questions: questions,
-      index: 0,
-      correctCount: 0,
-      wrongWords: [],
-      answered: false
-    };
-    show('quiz');
-    showQuestion();
+    beginQuiz({ format: format, isExam: false, questions: questions });
+  }
+
+  // 合格テスト：今の級の40語すべての例文穴埋め（順番はランダム）
+  function startExam() {
+    var me = Auth.currentUser();
+    if (!examStatus(me.id).canTake) {
+      render();
+      return;
+    }
+    var grade = GradeProgress.get(me.id).currentGrade;
+    beginQuiz({ format: GradeProgress.EXAM_FORMAT, isExam: true, grade: grade, questions: Quiz.createExam(grade) });
   }
 
   // 文の空所（____）の位置に、text を cls 付きの span で入れて表示する
@@ -157,7 +187,9 @@
   function showQuestion() {
     var q = quiz.questions[quiz.index];
     quiz.answered = false;
-    $('quiz-label').textContent = FORMAT_LABELS[q.format] + '・' + q.word.grade + '級・' + (q.isReview ? '復習' : '新しい単語');
+    $('quiz-label').textContent = quiz.isExam
+      ? quiz.grade + '級 合格テスト'
+      : FORMAT_LABELS[q.format] + '・' + q.word.grade + '級・' + (q.isReview ? '復習' : '新しい単語');
     $('quiz-progress').textContent = (quiz.index + 1) + ' / ' + quiz.questions.length;
     $('quiz-feedback').hidden = true;
 
@@ -251,12 +283,48 @@
     });
     $('result-wrong-area').hidden = quiz.wrongWords.length === 0;
     $('result-perfect').hidden = quiz.wrongWords.length !== 0;
-    var left = planToday(Auth.currentUser().id, quiz.format).queue.length;
-    $('result-done').hidden = left !== 0;
-    $('result-remaining').hidden = left === 0;
-    $('result-remaining').textContent = 'この形式の今日の問題は、あと ' + left + ' 問あります。ホームから続けられます。';
+    if (quiz.isExam) {
+      showExamResult();
+    } else {
+      $('result-title').textContent = '結果';
+      $('result-exam').hidden = true;
+      $('result-exam-note').hidden = true;
+      var left = planToday(Auth.currentUser().id, quiz.format).queue.length;
+      $('result-done').hidden = left !== 0;
+      $('result-remaining').hidden = left === 0;
+      $('result-remaining').textContent = 'この形式の今日の問題は、あと ' + left + ' 問あります。ホームから続けられます。';
+    }
     show('result');
   }
+
+  // 合格テストの結果：合格なら次の級へ。不合格なら再挑戦は翌日から
+  function showExamResult() {
+    var userId = Auth.currentUser().id;
+    var total = quiz.questions.length;
+    var outcome = GradeProgress.applyExamResult(GradeProgress.get(userId), quiz.correctCount, total, DateUtil.todayString());
+    GradeProgress.save(userId, outcome.progress);
+
+    $('result-title').textContent = quiz.grade + '級 合格テストの結果';
+    $('result-done').hidden = true;
+    $('result-remaining').hidden = true;
+    var msg = $('result-exam');
+    var note = $('result-exam-note');
+    msg.hidden = false;
+    note.hidden = false;
+    msg.className = 'exam-result ' + (outcome.passed ? 'pass' : 'fail');
+    if (!outcome.passed) {
+      msg.textContent = '不合格';
+      note.textContent = '合格は ' + GradeProgress.passCount(total) + '問以上です。下の単語を復習して、明日もう一度挑戦しよう。';
+    } else if (outcome.progress.allCleared) {
+      msg.textContent = '🎉 合格！';
+      note.textContent = 'デモ版で用意している級はここまでです。';
+    } else {
+      msg.textContent = '🎉 合格！' + outcome.progress.currentGrade + '級に上がりました';
+      note.textContent = 'これから新しい単語は ' + outcome.progress.currentGrade + '級の単語も出ます（' + quiz.grade + '級でまだ出していない単語が先に出ます）。' + quiz.grade + '級の単語の復習も続けて出ます。';
+    }
+  }
+
+  $('exam-button').addEventListener('click', startExam);
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-format]'), function (btn) {
     btn.addEventListener('click', function () { startQuiz(btn.getAttribute('data-format')); });
