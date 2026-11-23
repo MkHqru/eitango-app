@@ -12,6 +12,17 @@
     <h1 class="app-title">英単語学習</h1>
   </header>
 
+  <!-- デモ用の日付操作（全画面で表示） -->
+  <div class="demo-date-bar">
+    <p class="demo-date-text">デモ日付：<strong id="demo-date"></strong><span id="demo-offset" class="demo-offset"></span></p>
+    <div class="demo-date-buttons">
+      <button type="button" data-add-days="1">+1日</button>
+      <button type="button" data-add-days="3">+3日</button>
+      <button type="button" data-add-days="7">+7日</button>
+      <button type="button" id="demo-date-reset">今日に戻す</button>
+    </div>
+  </div>
+
   <main class="container">
     <!-- ログイン画面 -->
     <section id="screen-login" class="card" hidden>
@@ -49,17 +60,40 @@
     <section id="screen-student-home" class="card" hidden>
       <h2>生徒ホーム</h2>
       <p>ID：<strong id="student-user-id"></strong></p>
-      <h3 class="section-title">単語テスト（1回10問）</h3>
-      <p class="step-label">① 級を選ぶ</p>
-      <div class="segmented" role="radiogroup" aria-label="級">
-        <label><input type="radio" name="grade" value="20" checked><span>20級</span></label>
-        <label><input type="radio" name="grade" value="19"><span>19級</span></label>
-        <label><input type="radio" name="grade" value="18"><span>18級</span></label>
+      <h3 class="section-title">今日の単語テスト（1回10問まで）</h3>
+      <p class="hint">復習の単語 → 新しい単語（1日10語まで）の順に出ます。</p>
+      <div id="format-list" class="format-list">
+        <div class="format-card" data-format-card="en-ja">
+          <h4>英語 → 日本語（4択）</h4>
+          <ul class="stats">
+            <li>今日の<br>復習<strong data-stat="reviews">0</strong></li>
+            <li>今日の<br>新しい単語<strong data-stat="news">0</strong></li>
+            <li>覚えた<br>単語<strong data-stat="mastered">0</strong></li>
+          </ul>
+          <button type="button" class="btn primary" data-format="en-ja">始める</button>
+          <p class="done-message" hidden>✅ 今日の分は完了</p>
+        </div>
+        <div class="format-card" data-format-card="ja-en">
+          <h4>日本語 → 英語（入力）</h4>
+          <ul class="stats">
+            <li>今日の<br>復習<strong data-stat="reviews">0</strong></li>
+            <li>今日の<br>新しい単語<strong data-stat="news">0</strong></li>
+            <li>覚えた<br>単語<strong data-stat="mastered">0</strong></li>
+          </ul>
+          <button type="button" class="btn primary" data-format="ja-en">始める</button>
+          <p class="done-message" hidden>✅ 今日の分は完了</p>
+        </div>
+        <div class="format-card" data-format-card="fill">
+          <h4>例文穴埋め（入力）</h4>
+          <ul class="stats">
+            <li>今日の<br>復習<strong data-stat="reviews">0</strong></li>
+            <li>今日の<br>新しい単語<strong data-stat="news">0</strong></li>
+            <li>覚えた<br>単語<strong data-stat="mastered">0</strong></li>
+          </ul>
+          <button type="button" class="btn primary" data-format="fill">始める</button>
+          <p class="done-message" hidden>✅ 今日の分は完了</p>
+        </div>
       </div>
-      <p class="step-label">② 出題形式を選んで始める</p>
-      <button type="button" class="btn primary" data-format="en-ja">英語 → 日本語（4択）</button>
-      <button type="button" class="btn primary" data-format="ja-en">日本語 → 英語（入力）</button>
-      <button type="button" class="btn primary" data-format="fill">例文穴埋め（入力）</button>
       <button type="button" class="btn secondary" data-action="logout">ログアウト</button>
     </section>
 
@@ -109,6 +143,8 @@
         <ul id="result-wrong-list" class="word-list"></ul>
       </div>
       <p id="result-perfect" class="message info" hidden>全問正解です！</p>
+      <p id="result-done" class="done-message" hidden>✅ 今日の分は完了</p>
+      <p id="result-remaining" class="hint" hidden></p>
       <button id="result-home" type="button" class="btn primary">ホームに戻る</button>
     </section>
 
@@ -120,10 +156,11 @@
     </section>
   </main>
 
-  <script src="js/date.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/date.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/words.js"></script>
+  <script src="js/schedule.js"></script>
   <script src="js/records.js"></script>
   <script src="js/quiz.js"></script>
   <script src="js/app.js"></script>

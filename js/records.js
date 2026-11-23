@@ -1,16 +1,12 @@
 // 回答の記録。「単語ID × 出題形式」ごとに保存する。
 // 出題形式は 'en-ja'（英→日）/ 'ja-en'（日→英）/ 'fill'（例文穴埋め）の3種類で、それぞれ別々に管理する。
 // 保存は js/storage.js 経由。キーは records:ユーザーID
-// 中身の例：{ "20-01|fill": { correct: 1, wrong: 0, lastAnswered: "2026-11-23", lastResult: true } }
+// 記録の中身（段階・次に出題する日など）と間隔のルールは js/schedule.js を参照。
 (function () {
   'use strict';
 
   function storageKey(userId) {
     return 'records:' + userId;
-  }
-
-  function recordKey(wordId, format) {
-    return wordId + '|' + format;
   }
 
   function getAll(userId) {
@@ -19,18 +15,15 @@
 
   // 未回答なら null
   function get(userId, wordId, format) {
-    return getAll(userId)[recordKey(wordId, format)] || null;
+    return getAll(userId)[Schedule.recordKey(wordId, format)] || null;
   }
 
   function save(userId, wordId, format, isCorrect) {
     var all = getAll(userId);
-    var key = recordKey(wordId, format);
-    var rec = all[key] || { correct: 0, wrong: 0, lastAnswered: null, lastResult: null };
-    if (isCorrect) rec.correct++; else rec.wrong++;
-    rec.lastAnswered = formatDate(today());
-    rec.lastResult = isCorrect;
-    all[key] = rec;
+    var key = Schedule.recordKey(wordId, format);
+    all[key] = Schedule.applyAnswer(all[key] || null, isCorrect, DateUtil.todayString());
     AppStorage.set(storageKey(userId), all);
+    return all[key];
   }
 
   window.Records = { getAll: getAll, get: get, save: save };

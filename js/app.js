@@ -37,6 +37,7 @@
       show('teacher-home');
     } else {
       $('student-user-id').textContent = me.id;
+      renderStudentHome(me.id);
       show('student-home');
     }
   }
@@ -76,6 +77,8 @@
   $('reset-button').addEventListener('click', function () {
     if (!confirm('デモデータをすべて初期状態に戻します。よろしいですか？')) return;
     Auth.resetDemoData();
+    quiz = null;
+    updateDemoDate();
     $('login-form').reset();
     showMessage('login-error', '');
     showMessage('login-info', 'デモデータを初期状態に戻しました。');
@@ -88,25 +91,42 @@
 
   // ---- 単語テスト ----
   var FORMAT_LABELS = { 'en-ja': '英語 → 日本語', 'ja-en': '日本語 → 英語', 'fill': '例文穴埋め' };
-  var quiz = null; // { format, grade, questions, index, correctCount, wrongWords, answered }
+  var quiz = null; // { format, questions, index, correctCount, wrongWords, answered }
 
-  function selectedGrade() {
-    var checked = document.querySelector('input[name="grade"]:checked');
-    return Number(checked ? checked.value : Quiz.GRADES[0]);
+  // 出題形式ごとの今日の予定（復習・新しい単語・覚えた単語）
+  function planToday(userId, format) {
+    return Schedule.planToday(window.WORDS, Records.getAll(userId), format, DateUtil.todayString());
+  }
+
+  // 生徒ホーム：出題形式ごとに、今日の復習数・新しい単語数・覚えた単語数を表示
+  function renderStudentHome(userId) {
+    Quiz.FORMATS.forEach(function (format) {
+      var plan = planToday(userId, format);
+      var card = document.querySelector('[data-format-card="' + format + '"]');
+      card.querySelector('[data-stat="reviews"]').textContent = plan.reviews.length;
+      card.querySelector('[data-stat="news"]').textContent = plan.news.length;
+      card.querySelector('[data-stat="mastered"]').textContent = plan.masteredCount;
+      var done = plan.queue.length === 0;
+      card.querySelector('[data-format]').hidden = done;
+      card.querySelector('.done-message').hidden = !done;
+    });
   }
 
   function startQuiz(format) {
-    var grade = selectedGrade();
+    var me = Auth.currentUser();
+    var questions = Quiz.createSession(format, Records.getAll(me.id), DateUtil.todayString());
+    if (questions.length === 0) {
+      render();
+      return;
+    }
     quiz = {
       format: format,
-      grade: grade,
-      questions: Quiz.createQuestions(format, grade),
+      questions: questions,
       index: 0,
       correctCount: 0,
       wrongWords: [],
       answered: false
     };
-    $('quiz-label').textContent = grade + '級・' + FORMAT_LABELS[format];
     show('quiz');
     showQuestion();
   }
@@ -137,6 +157,7 @@
   function showQuestion() {
     var q = quiz.questions[quiz.index];
     quiz.answered = false;
+    $('quiz-label').textContent = FORMAT_LABELS[q.format] + '・' + q.word.grade + '級・' + (q.isReview ? '復習' : '新しい単語');
     $('quiz-progress').textContent = (quiz.index + 1) + ' / ' + quiz.questions.length;
     $('quiz-feedback').hidden = true;
 
@@ -230,6 +251,10 @@
     });
     $('result-wrong-area').hidden = quiz.wrongWords.length === 0;
     $('result-perfect').hidden = quiz.wrongWords.length !== 0;
+    var left = planToday(Auth.currentUser().id, quiz.format).queue.length;
+    $('result-done').hidden = left !== 0;
+    $('result-remaining').hidden = left === 0;
+    $('result-remaining').textContent = 'この形式の今日の問題は、あと ' + left + ' 問あります。ホームから続けられます。';
     show('result');
   }
 
@@ -258,5 +283,32 @@
     render();
   });
 
+  // ---- デモ用の日付操作 ----
+  function updateDemoDate() {
+    $('demo-date').textContent = DateUtil.displayDate(DateUtil.todayString());
+    var offset = DemoDate.getOffset();
+    $('demo-offset').textContent = offset ? '（' + (offset > 0 ? '+' : '') + offset + '日）' : '';
+  }
+
+  // 日付を変えたら、テストの途中でもホームに戻して出題を作り直す
+  function onDemoDateChanged() {
+    quiz = null;
+    updateDemoDate();
+    render();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-add-days]'), function (btn) {
+    btn.addEventListener('click', function () {
+      DemoDate.add(Number(btn.getAttribute('data-add-days')));
+      onDemoDateChanged();
+    });
+  });
+
+  $('demo-date-reset').addEventListener('click', function () {
+    DemoDate.reset();
+    onDemoDateChanged();
+  });
+
+  updateDemoDate();
   render();
 })();

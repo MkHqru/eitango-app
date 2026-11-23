@@ -37,12 +37,15 @@
     return shuffle([word.ja].concat(wrong));
   }
 
-  // 1回分（10問）の問題を作る。選んだ級の単語だけから出す（出題順はランダム）
-  function createQuestions(format, grade, words) {
-    var pool = wordsOfGrade(grade, words);
-    return shuffle(pool).slice(0, QUESTION_COUNT).map(function (word) {
-      var q = { word: word, format: format };
-      if (format === 'en-ja') q.choices = makeChoices(word, pool);
+  // 今日の出題予定（js/schedule.js）から、1回分（最大10問）の問題を作る
+  //   順番は ①出題日を過ぎた復習の単語 → ②まだ出していない新しい単語（級の低い順）
+  //   4択の不正解の選択肢は、その単語と同じ級の単語から選ぶ
+  function createSession(format, records, todayStr, words) {
+    words = words || window.WORDS;
+    var plan = Schedule.planToday(words, records, format, todayStr);
+    return plan.queue.slice(0, QUESTION_COUNT).map(function (word, i) {
+      var q = { word: word, format: format, isReview: i < plan.reviews.length };
+      if (format === 'en-ja') q.choices = makeChoices(word, wordsOfGrade(word.grade, words));
       return q;
     });
   }
@@ -75,7 +78,8 @@
     FORMATS: FORMATS,
     GRADES: GRADES,
     wordsOfGrade: wordsOfGrade,
-    createQuestions: createQuestions,
+    createSession: createSession,
+    makeChoices: makeChoices,
     normalize: normalize,
     isCorrect: isCorrect,
     fillBlank: fillBlank
