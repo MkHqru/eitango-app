@@ -82,15 +82,25 @@
     render();
   });
 
+  // デモデータのリセットは画面の中で確認する（ブラウザの confirm() は使わない）
   $('reset-button').addEventListener('click', function () {
-    if (!confirm('デモデータをすべて初期状態に戻します。よろしいですか？')) return;
-    Auth.resetDemoData();
+    showMessage('login-info', '');
+    $('reset-confirm').hidden = false;
+  });
+
+  $('reset-confirm-no').addEventListener('click', function () {
+    $('reset-confirm').hidden = true;
+  });
+
+  $('reset-confirm-yes').addEventListener('click', function () {
+    $('reset-confirm').hidden = true;
+    DemoData.reset();
     quiz = null;
     teacherView.studentId = null;
     updateDemoDate();
     $('login-form').reset();
     showMessage('login-error', '');
-    showMessage('login-info', 'デモデータを初期状態に戻しました。');
+    showMessage('login-info', 'デモデータを最初の状態に戻しました（サンプルの学習記録を入れ直しました）。');
     render();
   });
 
@@ -561,6 +571,7 @@
     onDemoDateChanged();
   });
 
+  DemoData.ensureInitialized(); // 初回起動時はサンプルの学習記録を入れる
   updateDemoDate();
   render();
 })();

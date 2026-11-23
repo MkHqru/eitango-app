@@ -26,10 +26,15 @@
     return all[key];
   }
 
+  // その生徒の記録をまとめて保存する（サンプルデータを入れるとき）
+  function setAll(userId, records) {
+    AppStorage.set(storageKey(userId), records);
+  }
+
   // その生徒の記録をすべて消す（先生が生徒を削除したとき）
   function clear(userId) {
     AppStorage.remove(storageKey(userId));
   }
 
-  window.Records = { getAll: getAll, get: get, save: save, clear: clear };
+  window.Records = { getAll: getAll, get: get, save: save, setAll: setAll, clear: clear };
 })();
