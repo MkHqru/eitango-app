@@ -1,10 +1,13 @@
 // 単語テストの問題づくりと判定
-// 出題方向：'en-ja'（英→日・4択） / 'ja-en'（日→英・入力式）
+// 出題形式：'en-ja'（英→日・4択） / 'ja-en'（日→英・入力） / 'fill'（例文穴埋め・入力）
 (function () {
   'use strict';
 
   var QUESTION_COUNT = 10;
   var CHOICE_COUNT = 4;
+  var BLANK = '____';
+  var FORMATS = ['en-ja', 'ja-en', 'fill'];
+  var GRADES = [20, 19, 18];
 
   function shuffle(list) {
     var a = list.slice();
@@ -15,13 +18,17 @@
     return a;
   }
 
+  function wordsOfGrade(grade, words) {
+    return (words || window.WORDS).filter(function (w) { return w.grade === grade; });
+  }
+
   // 英→日の選択肢（日本語訳4つ）。不正解はできるだけ同じ品詞から選ぶ
-  function makeChoices(word, words) {
+  function makeChoices(word, candidates) {
     var used = {};
     used[word.ja] = true;
     var wrong = [];
-    var samePos = shuffle(words.filter(function (w) { return w.pos === word.pos; }));
-    var otherPos = shuffle(words.filter(function (w) { return w.pos !== word.pos; }));
+    var samePos = shuffle(candidates.filter(function (w) { return w.pos === word.pos; }));
+    var otherPos = shuffle(candidates.filter(function (w) { return w.pos !== word.pos; }));
     samePos.concat(otherPos).forEach(function (w) {
       if (wrong.length >= CHOICE_COUNT - 1 || used[w.ja]) return;
       used[w.ja] = true;
@@ -30,29 +37,47 @@
     return shuffle([word.ja].concat(wrong));
   }
 
-  // 1回分（10問）の問題を作る。このIssueでは出題順はランダム
-  function createQuestions(direction, words) {
-    words = words || window.WORDS;
-    return shuffle(words).slice(0, QUESTION_COUNT).map(function (word) {
-      var q = { word: word, direction: direction };
-      if (direction === 'en-ja') q.choices = makeChoices(word, words);
+  // 1回分（10問）の問題を作る。選んだ級の単語だけから出す（出題順はランダム）
+  function createQuestions(format, grade, words) {
+    var pool = wordsOfGrade(grade, words);
+    return shuffle(pool).slice(0, QUESTION_COUNT).map(function (word) {
+      var q = { word: word, format: format };
+      if (format === 'en-ja') q.choices = makeChoices(word, pool);
       return q;
     });
   }
 
-  // 日→英の判定：大文字・小文字の違いと前後の空白は無視する
+  // 入力の判定用に整える：
+  // 大文字・小文字、前後の空白、語と語の間の空白の数、アポストロフィーの種類（' と ’）の違いを無視する
   function normalize(text) {
-    return String(text || '').trim().toLowerCase();
+    return String(text || '')
+      .replace(/[‘’ʼ`´]/g, "'")
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
   }
 
   function isCorrect(question, answer) {
-    if (question.direction === 'en-ja') return answer === question.word.ja;
-    return normalize(answer) === normalize(question.word.en);
+    var word = question.word;
+    if (question.format === 'en-ja') return answer === word.ja;
+    var a = normalize(answer);
+    return word.answers.some(function (ans) { return normalize(ans) === a; });
+  }
+
+  // 例文の空所を text で埋める
+  function fillBlank(sentence, text) {
+    return sentence.replace(BLANK, text);
   }
 
   window.Quiz = {
     QUESTION_COUNT: QUESTION_COUNT,
+    BLANK: BLANK,
+    FORMATS: FORMATS,
+    GRADES: GRADES,
+    wordsOfGrade: wordsOfGrade,
     createQuestions: createQuestions,
-    isCorrect: isCorrect
+    normalize: normalize,
+    isCorrect: isCorrect,
+    fillBlank: fillBlank
   };
 })();
