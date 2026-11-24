@@ -11,12 +11,14 @@
   var INITIAL_STUDENT_PASSWORD = '1234'; // デモ限定・本番では使わない
 
   // デモ用の初期アカウント（デモ限定・本番では使わない）
+  // サンプル生徒（juku001〜005）と先生は、デモをすぐ始められるように「初回のパスワード変更を済ませた状態」にする。
+  // パスワードは 1234 / admin のまま。先生が新しく追加した生徒や、パスワードをリセットした生徒は、次のログインで変更画面が出る
   function initialUsers() {
     var users = {};
     for (var i = 1; i <= 5; i++) {
-      users[studentId(i)] = { role: 'student', password: INITIAL_STUDENT_PASSWORD, mustChangePassword: true };
+      users[studentId(i)] = { role: 'student', password: INITIAL_STUDENT_PASSWORD, mustChangePassword: false };
     }
-    users.teacher = { role: 'teacher', password: 'admin', mustChangePassword: true };
+    users.teacher = { role: 'teacher', password: 'admin', mustChangePassword: false };
     return users;
   }
 
@@ -76,10 +78,16 @@
     return null;
   }
 
-  // 全データを初期状態に戻す
+  // 全データを消して、アカウントだけを初期状態に戻す
+  // （サンプルの学習記録も入れるときは js/sample.js の DemoData.reset() を使う）
   function resetDemoData() {
     AppStorage.clearAll();
     AppStorage.set(USERS_KEY, initialUsers());
+  }
+
+  // アカウントのデータがすでに保存されているか（初回起動の判定に使う）
+  function hasAccounts() {
+    return !!AppStorage.get(USERS_KEY);
   }
 
   // ---- 先生だけができる操作（先生でログインしていないときは何もしない）----
@@ -148,6 +156,7 @@
     currentUser: currentUser,
     changePassword: changePassword,
     resetDemoData: resetDemoData,
+    hasAccounts: hasAccounts,
     INITIAL_STUDENT_PASSWORD: INITIAL_STUDENT_PASSWORD,
     isTeacher: isTeacher,
     listStudents: listStudents,
